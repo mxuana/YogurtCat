@@ -1,0 +1,14 @@
+.gradle/
+**/build/
+local.properties
+*.jks
+*.keystore
+*.pem
+*.p12
+*.key
+.env
+.env.*
+.patch-backups/
+.yogurtcat-backups/
+legacy-sticker-disabled/
+.idea/

@@ -1,0 +1,110 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_app_gradient">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/back"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="返回" />
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="历史详情"
+                android:textColor="@color/ink"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/historyImage"
+            android:layout_width="match_parent"
+            android:layout_height="430dp"
+            android:layout_marginTop="12dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="历史生成图片"
+            android:scaleType="fitCenter" />
+
+        <Button
+            android:id="@+id/reuse"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="一键复用到当前生图" />
+        <Button
+            android:id="@+id/saveHistoryImage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="保存原图到相册" />
+        <Button
+            android:id="@+id/copyDiagnostics"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="复制诊断信息" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="当时的提示词"
+            android:textColor="@color/ink"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/historyPrompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_field"
+            android:padding="12dp"
+            android:textColor="@color/ink"
+            android:textIsSelectable="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="当时的参考图"
+            android:textColor="@color/ink"
+            android:textStyle="bold" />
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp">
+            <LinearLayout
+                android:id="@+id/historyRefs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="参数 / 诊断"
+            android:textColor="@color/ink"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/historyParams"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_field"
+            android:padding="12dp"
+            android:textColor="@color/ink"
+            android:textIsSelectable="true" />
+    </LinearLayout>
+</ScrollView>

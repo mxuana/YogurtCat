@@ -1,0 +1,33 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    android:background="@drawable/bg_app_gradient"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+            <Button android:id="@+id/back" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="返回" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_weight="1" android:text="编辑 OC" android:textSize="24sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <EditText android:id="@+id/ocName" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:hint="OC 名称" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="参考图" android:textStyle="bold" />
+        <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+            <LinearLayout android:id="@+id/ocRefs" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" />
+        </HorizontalScrollView>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+            <Button android:id="@+id/addOcRefs" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="+ 添加参考图" />
+            <Button android:id="@+id/clearOcRefs" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="清空" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="点击缩略图可移除。最多 10 张。" android:textSize="12sp" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="人物提示词" android:textStyle="bold" />
+        <EditText android:id="@+id/ocPrompt" android:layout_width="match_parent" android:layout_height="200dp" android:gravity="top|start" android:hint="整段人物提示词，不需要拆分正向词/反向词。" android:inputType="textMultiLine" android:padding="12dp" />
+
+        <Button android:id="@+id/saveOc" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="保存 OC" />
+    </LinearLayout>
+</ScrollView>

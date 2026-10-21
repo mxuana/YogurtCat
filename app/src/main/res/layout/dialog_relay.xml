@@ -1,0 +1,116 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <EditText
+            android:id="@+id/relayName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="名称，例如 Change2Pro" />
+
+        <EditText
+            android:id="@+id/baseUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="API 主机，例如 https://gateway.example.com"
+            android:inputType="textUri" />
+
+        <EditText
+            android:id="@+id/apiKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="API Key"
+            android:inputType="textPassword" />
+
+        <EditText
+            android:id="@+id/defaultModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="默认模型（可留空，检查连接后自动读取）" />
+
+        <Button
+            android:id="@+id/testRelay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="检查连接并获取模型" />
+
+        <TextView
+            android:id="@+id/testResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/toggleAdvanced"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="高级设置（通常不用管）" />
+
+        <LinearLayout
+            android:id="@+id/advancedContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <Switch
+                android:id="@+id/streamEnabled"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="流式响应（默认关闭）"
+                android:checked="false" />
+
+            <EditText
+                android:id="@+id/modelsPath"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="模型接口 /v1/models" />
+
+            <EditText
+                android:id="@+id/generationsPath"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="文生图 /v1/images/generations" />
+
+            <EditText
+                android:id="@+id/editsPath"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="参考图 /v1/images/edits" />
+
+            <EditText
+                android:id="@+id/imageField"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="参考图字段名，例如 image 或 image[]" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="尺寸参数格式"
+                android:textStyle="bold" />
+
+            <Spinner
+                android:id="@+id/sizeMode"
+                android:layout_width="match_parent"
+                android:layout_height="52dp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

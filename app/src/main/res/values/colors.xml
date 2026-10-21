@@ -1,0 +1,15 @@
+<resources>
+    <color name="app_bg">#FFF8FC</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="surface_alt">#FAF5FF</color>
+    <color name="surface_pink">#FFF2F7</color>
+    <color name="ink">#211B2E</color>
+    <color name="muted">#786F84</color>
+    <color name="line">#EADFEB</color>
+    <color name="accent">#6A54C9</color>
+    <color name="accent_soft">#F0EBFF</color>
+    <color name="pink">#F0A2C1</color>
+    <color name="pink_soft">#FFF0F6</color>
+    <color name="success">#37A76F</color>
+    <color name="danger">#C94665</color>
+</resources>
