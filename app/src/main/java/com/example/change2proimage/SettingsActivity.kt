@@ -27,8 +27,6 @@ class SettingsActivity : BaseActivity() {
         findViewById<Button>(R.id.back).setOnClickListener { finish() }
         findViewById<Button>(R.id.addRelay).setOnClickListener { showRelayDialog(null) }
         findViewById<Button>(R.id.openUiEditor).setOnClickListener { startActivity(Intent(this, UiEditorActivity::class.java)) }
-        findViewById<Button>(R.id.openOc).setOnClickListener { startActivity(Intent(this, OcListActivity::class.java)) }
-        findViewById<Button>(R.id.openTemplates).setOnClickListener { startActivity(Intent(this, TemplateListActivity::class.java)) }
         findViewById<TextView>(R.id.versionInfo).text = "当前版本：${BuildConfig.VERSION_NAME}"
         findViewById<Button>(R.id.checkUpdate).setOnClickListener { UpdateManager(this).checkForUpdate(silent = false, force = true) }
         setupCollapsibleSections()
@@ -50,9 +48,9 @@ class SettingsActivity : BaseActivity() {
             apply(open)
             toggle.setOnClickListener { open = !open; prefs.edit().putBoolean(key, open).apply(); apply(open) }
         }
-        bind(R.id.toggleWorkspace, R.id.workspaceSection, "workspace", true, "工作区")
+        bind(R.id.toggleWorkspace, R.id.workspaceSection, "workspace", true, "外观")
         bind(R.id.toggleRelays, R.id.relaySection, "relays", true, "中转站")
-        bind(R.id.toggleApp, R.id.appSection, "app", false, "应用")
+        bind(R.id.toggleApp, R.id.appSection, "app", false, "关于与更新")
     }
 
     private fun renderRelays() {

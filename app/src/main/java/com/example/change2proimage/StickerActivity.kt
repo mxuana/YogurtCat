@@ -8,33 +8,29 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.widget.*
-import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 
 class StickerActivity : BaseActivity() {
-    private lateinit var workspace: WorkspaceStore
     private lateinit var stickers: StickerStore
     private lateinit var relayStore: RelayStore
     private lateinit var taskStore: GenerationTaskStore
     private lateinit var grid: LinearLayout
-    private lateinit var ocText: TextView
+    private lateinit var referenceText: TextView
     private lateinit var relaySpinner: Spinner
     private lateinit var modelSpinner: Spinner
     private lateinit var taskSummary: TextView
-    private var oc: OcProfile? = null
     private val directReferenceUris = mutableListOf<String>()
     private val pickDirectReferences = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MainActivity.MAX_REFERENCE_IMAGES)) { uris ->
-        directReferenceUris.clear(); directReferenceUris.addAll(uris.map { it.toString() }); oc = null
-        if (::ocText.isInitialized) ocText.text = if (directReferenceUris.isEmpty()) "尚未选择人物" else "直接参考图 · ${directReferenceUris.size} 张"
+        directReferenceUris.clear(); directReferenceUris.addAll(uris.map { it.toString() })
+        if (::referenceText.isInitialized) referenceText.text = if (directReferenceUris.isEmpty()) "尚未选择人物" else "直接参考图 · ${directReferenceUris.size} 张"
     }
     private var relays = emptyList<RelayConfig>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        workspace = WorkspaceStore(this)
         stickers = StickerStore(this)
         relayStore = RelayStore(this)
         taskStore = GenerationTaskStore(this)
@@ -46,7 +42,7 @@ class StickerActivity : BaseActivity() {
         }
         root.addView(buildHeader())
         root.addView(TextView(this).apply {
-            text = "模板图是图一；可选择 OC，也可直接添加人物参考图作为图二及后续参考图。"
+            text = "表情包底图是图一，人物参考图作为图二及后续参考图。"
             setTextColor(Color.parseColor("#786F84")); textSize = 14f
             setPadding(dp(4), dp(6), dp(4), dp(12))
         })
@@ -78,13 +74,12 @@ class StickerActivity : BaseActivity() {
 
     private fun buildControlCard(): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(12), dp(14), dp(12)); background = cardBg()
-        addView(label("人物 / OC"))
-        val ocRow = LinearLayout(this@StickerActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        ocText = TextView(this@StickerActivity).apply { text = "尚未选择人物"; textSize = 16f }
-        ocRow.addView(ocText, LinearLayout.LayoutParams(0, dp(48), 1f))
-        ocRow.addView(secondaryButton("OC") { chooseOc() }, LinearLayout.LayoutParams(dp(70), dp(44)))
-        ocRow.addView(secondaryButton("参考图") { pickDirectReferences.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, LinearLayout.LayoutParams(dp(88), dp(44)).apply { marginStart = dp(6) })
-        addView(ocRow)
+        addView(label("人物参考图"))
+        val referenceRow = LinearLayout(this@StickerActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        referenceText = TextView(this@StickerActivity).apply { text = "尚未选择人物"; textSize = 16f }
+        referenceRow.addView(referenceText, LinearLayout.LayoutParams(0, dp(48), 1f))
+        referenceRow.addView(secondaryButton("参考图") { pickDirectReferences.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, LinearLayout.LayoutParams(dp(88), dp(44)).apply { marginStart = dp(6) })
+        addView(referenceRow)
         addView(label("中转站与模型"))
         relaySpinner = Spinner(this@StickerActivity)
         modelSpinner = Spinner(this@StickerActivity)
@@ -150,19 +145,11 @@ class StickerActivity : BaseActivity() {
         addView(actions)
     }
 
-    private fun chooseOc() {
-        val all = workspace.getOcs()
-        if (all.isEmpty()) { Toast.makeText(this, "请先创建 OC", Toast.LENGTH_SHORT).show(); return }
-        AlertDialog.Builder(this).setTitle("选择人物 / OC").setItems(all.map { it.name }.toTypedArray()) { _, i ->
-            oc = all[i]; directReferenceUris.clear(); ocText.text = "${all[i].name} · ${all[i].referenceUris.size} 张人物参考图"
-        }.show()
-    }
-
     private fun generateItems(items: List<StickerTemplateItem>) {
-        val personRefs = oc?.referenceUris ?: directReferenceUris
-        val personName = oc?.name ?: if (directReferenceUris.isNotEmpty()) "直接参考图" else ""
-        val personId = oc?.id ?: "direct_${System.currentTimeMillis()}"
-        if (personRefs.isEmpty()) { Toast.makeText(this, "请选择 OC 或添加人物参考图", Toast.LENGTH_SHORT).show(); return }
+        val personRefs = directReferenceUris
+        val personName = "直接参考图"
+        val personId = "direct_${System.currentTimeMillis()}"
+        if (personRefs.isEmpty()) { Toast.makeText(this, "请添加人物参考图", Toast.LENGTH_SHORT).show(); return }
         if (items.isEmpty()) { Toast.makeText(this, "还没有表情模板", Toast.LENGTH_SHORT).show(); return }
         val relay = relays.getOrNull(relaySpinner.selectedItemPosition) ?: run { Toast.makeText(this, "请先配置中转站", Toast.LENGTH_SHORT).show(); return }
         val model = modelSpinner.selectedItem?.toString().orEmpty()

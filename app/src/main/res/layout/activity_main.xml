@@ -10,9 +10,9 @@
             <com.google.android.material.button.MaterialButton android:id="@+id/sessions" style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="46dp" android:layout_height="46dp" android:minWidth="0dp" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:padding="0dp" android:text="☰" android:textColor="@color/ink" android:textSize="23sp"/>
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="酸奶喵" android:textColor="@color/ink" android:textSize="20sp" android:textStyle="bold"/>
-            <TextView android:id="@+id/sessionTitle" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="" android:textColor="@color/muted" android:textSize="1sp"/>
-            <com.google.android.material.button.MaterialButton android:id="@+id/settings" style="@style/Widget.Material3.Button.TextButton" android:visibility="gone"
-                android:layout_width="1dp" android:layout_height="1dp" android:minWidth="0dp" android:minHeight="0dp" android:text=""/>
+            <com.google.android.material.button.MaterialButton android:id="@+id/drawerNewSession" style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp"
+                android:contentDescription="新建会话" android:text="＋" android:textColor="@color/ink" android:textSize="24sp"/>
         </LinearLayout>
 
         <ScrollView android:id="@+id/chatScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false" android:scrollbars="none">
@@ -20,30 +20,54 @@
         </ScrollView>
 
         <com.google.android.material.card.MaterialCardView android:id="@+id/composerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="10dp"
-            app:cardBackgroundColor="@color/surface" app:cardCornerRadius="22dp" app:cardElevation="2dp" app:strokeColor="@color/line" app:strokeWidth="1dp">
+            app:cardBackgroundColor="@color/surface" app:cardCornerRadius="22dp" app:cardElevation="1dp" app:strokeColor="@color/line" app:strokeWidth="1dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
                 <HorizontalScrollView android:id="@+id/referenceScroll" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" android:scrollbars="none">
                     <LinearLayout android:id="@+id/referenceContainer" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal"/>
                 </HorizontalScrollView>
                 <TextView android:id="@+id/referenceHint" android:layout_width="wrap_content" android:layout_height="1dp" android:visibility="gone" android:text=""/>
-                <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:scrollbars="none">
-                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                        <Spinner android:id="@+id/aspectRatio" android:layout_width="82dp" android:layout_height="40dp" android:background="@drawable/bg_field" android:paddingHorizontal="8dp"/>
-                        <Spinner android:id="@+id/resolution" android:layout_width="78dp" android:layout_height="40dp" android:layout_marginStart="6dp" android:background="@drawable/bg_field" android:paddingHorizontal="8dp"/>
-                        <Spinner android:id="@+id/model" android:layout_width="148dp" android:layout_height="40dp" android:layout_marginStart="6dp" android:background="@drawable/bg_field" android:paddingHorizontal="8dp"/>
-                        <Spinner android:id="@+id/relay" android:visibility="gone" android:layout_width="1dp" android:layout_height="1dp"/>
-                        <com.google.android.material.button.MaterialButton android:id="@+id/moreOptions" style="@style/Widget.Material3.Button.TextButton" android:layout_width="48dp" android:layout_height="40dp" android:layout_marginStart="6dp" android:minWidth="0dp" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="···" android:textColor="@color/ink" android:textSize="18sp"/>
+                <LinearLayout android:id="@+id/parameterPanel" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp" android:visibility="gone">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="生图参数" android:textColor="@color/ink" android:textStyle="bold" android:textSize="20sp"/>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中转站" android:textColor="@color/ink"/>
+                        <Spinner android:id="@+id/relay" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                            android:layout_marginStart="16dp" android:contentDescription="中转站"/>
                     </LinearLayout>
-                </HorizontalScrollView>
-                <TextView android:id="@+id/modelStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" android:textColor="@color/muted" android:textSize="11sp"/>
-                <TextView android:id="@+id/sizeHint" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" android:textColor="@color/muted" android:textSize="11sp"/>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="7dp" android:gravity="bottom" android:orientation="horizontal">
-                    <com.google.android.material.button.MaterialButton android:id="@+id/addReferences" style="@style/Widget.Material3.Button.TextButton" android:layout_width="42dp" android:layout_height="42dp" android:minWidth="0dp" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:padding="0dp" android:text="＋" android:textSize="24sp" android:textColor="@color/ink"/>
-                    <com.google.android.material.button.MaterialButton android:id="@+id/chooseOc" style="@style/Widget.Material3.Button.TextButton" android:layout_width="48dp" android:layout_height="42dp" android:minWidth="0dp" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:padding="0dp" android:text="OC" android:textColor="@color/ink"/>
-                    <EditText android:id="@+id/prompt" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="54dp" android:maxHeight="150dp" android:background="@android:color/transparent" android:gravity="top|start" android:hint="输入提示词…" android:inputType="textCapSentences|textMultiLine" android:padding="8dp" android:textColor="@color/ink" android:textColorHint="@color/muted" android:textSize="16sp"/>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="模型" android:textColor="@color/ink"/>
+                        <Spinner android:id="@+id/model" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                            android:layout_marginStart="16dp" android:contentDescription="模型"/>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="比例" android:textColor="@color/ink"/>
+                        <Spinner android:id="@+id/aspectRatio" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                            android:layout_marginStart="16dp" android:contentDescription="比例"/>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="分辨率" android:textColor="@color/ink"/>
+                        <Spinner android:id="@+id/resolution" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                            android:layout_marginStart="16dp" android:contentDescription="分辨率"/>
+                    </LinearLayout>
+                    <TextView android:id="@+id/modelStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textColor="@color/muted" android:textSize="12sp"/>
+                    <TextView android:id="@+id/sizeHint" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textColor="@color/muted" android:textSize="13sp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/parameterDone"
+                        android:layout_width="wrap_content" android:layout_height="48dp" android:layout_gravity="end"
+                        android:text="完成" app:backgroundTint="#181818"/>
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/addReferences" style="@style/Widget.Material3.Button.TextButton" android:layout_width="42dp" android:layout_height="42dp" android:minWidth="0dp" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:padding="0dp" android:contentDescription="从相册添加参考图" android:text="＋" android:textSize="24sp" android:textColor="@color/ink"/>
+                    <EditText android:id="@+id/prompt" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="48dp" android:maxHeight="150dp" android:background="@android:color/transparent" android:gravity="center_vertical|start" android:hint="描述你想生成的图片…" android:inputType="textCapSentences|textMultiLine" android:padding="8dp" android:textColor="@color/ink" android:textColorHint="@color/muted" android:textSize="16sp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/moreOptions" style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="44dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp"
+                        android:contentDescription="生图参数" app:icon="@drawable/ic_generation_parameters" app:iconTint="@color/ink"
+                        app:iconPadding="0dp" app:iconGravity="textStart"/>
                     <com.google.android.material.button.MaterialButton android:id="@+id/generate" android:layout_width="52dp" android:layout_height="52dp" android:minWidth="0dp" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:padding="0dp" android:text="↑" android:textSize="24sp" android:textColor="@android:color/white" app:backgroundTint="@color/accent" app:cornerRadius="26dp"/>
                 </LinearLayout>
-                <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_marginTop="2dp" android:textColor="@color/muted" android:textSize="11sp"/>
+                <TextView android:id="@+id/status" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_marginTop="2dp" android:textColor="@color/muted" android:textSize="11sp"/>
                 <com.google.android.material.button.MaterialButton android:id="@+id/clearReferences" android:visibility="gone" android:layout_width="1dp" android:layout_height="1dp" android:text=""/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -122,19 +146,6 @@
                 android:textSize="25sp" />
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/drawerNewSession"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:layout_marginTop="12dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="＋ 新建生图"
-            android:textAllCaps="false"
-            android:textSize="16sp"
-            app:backgroundTint="@color/accent"
-            app:cornerRadius="18dp" />
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -177,38 +188,7 @@
                 android:paddingVertical="6dp">
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/drawerOc"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:gravity="start|center_vertical"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:text="人物 / OC"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ink"
-                    android:textSize="15sp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/drawerTemplates"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:gravity="start|center_vertical"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:text="模板"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ink"
-                    android:textSize="15sp" />
-
-                <com.google.android.material.button.MaterialButton
                     android:id="@+id/drawerStickers"
-                    android:visibility="gone"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="match_parent"
                     android:layout_height="52dp"
@@ -217,23 +197,7 @@
                     android:insetBottom="0dp"
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
-                    android:text="表情包生成"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ink"
-                    android:textSize="15sp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/drawerStickerTasks"
-                    android:visibility="gone"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:gravity="start|center_vertical"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:text="表情包任务"
+                    android:text="表情包"
                     android:textAllCaps="false"
                     android:textColor="@color/ink"
                     android:textSize="15sp" />
@@ -248,7 +212,7 @@
                     android:insetBottom="0dp"
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
-                    android:text="中转站设置"
+                    android:text="设置"
                     android:textAllCaps="false"
                     android:textColor="@color/ink"
                     android:textSize="15sp" />

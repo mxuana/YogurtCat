@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.res.ColorStateList
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -15,13 +16,16 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.ScrollView
@@ -34,6 +38,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.bumptech.glide.Glide
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.button.MaterialButton
 import okhttp3.Call
@@ -59,13 +64,13 @@ class MainActivity : BaseActivity() {
     private lateinit var drawerSessionContainer: LinearLayout
     private lateinit var resultCard: View
 
-    private lateinit var sessionTitle: TextView
     private lateinit var promptEdit: EditText
     private lateinit var referenceContainer: LinearLayout
     private lateinit var referenceHint: TextView
     private lateinit var resolutionSpinner: Spinner
     private lateinit var ratioSpinner: Spinner
     private lateinit var sizeHint: TextView
+    private var parameterDialog: BottomSheetDialog? = null
     private lateinit var relaySpinner: Spinner
     private lateinit var modelSpinner: Spinner
     private lateinit var modelStatus: TextView
@@ -123,8 +128,6 @@ class MainActivity : BaseActivity() {
         setupRelaySelector()
         bindActions()
         loadInitialSession()
-        applyPendingOc(intent)
-        applyPendingTemplate(intent)
         requestNotificationsIfNeeded()
         if (recoveredTasks > 0) Toast.makeText(this, "$recoveredTasks 个上次中断的任务已安全停止，请手动决定是否重试", Toast.LENGTH_LONG).show()
         UpdateManager(this).checkForUpdate(silent = true)
@@ -133,8 +136,6 @@ class MainActivity : BaseActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        applyPendingOc(intent)
-        applyPendingTemplate(intent)
         refreshTaskUi(force = true)
     }
 
@@ -154,6 +155,7 @@ class MainActivity : BaseActivity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(pollRunnable)
+        parameterDialog?.dismiss()
         super.onDestroy()
     }
 
@@ -161,7 +163,6 @@ class MainActivity : BaseActivity() {
         drawerLayout = findViewById(R.id.drawerLayout)
         drawerSessionContainer = findViewById(R.id.drawerSessionContainer)
         resultCard = findViewById(R.id.resultCard)
-        sessionTitle = findViewById(R.id.sessionTitle)
         promptEdit = findViewById(R.id.prompt)
         referenceContainer = findViewById(R.id.referenceContainer)
         referenceHint = findViewById(R.id.referenceHint)
@@ -175,6 +176,13 @@ class MainActivity : BaseActivity() {
         saveButton = findViewById(R.id.save)
         progress = findViewById(R.id.progress)
         statusText = findViewById(R.id.status)
+        statusText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                statusText.visibility = if (s.isNullOrBlank()) View.GONE else View.VISIBLE
+            }
+            override fun afterTextChanged(s: android.text.Editable?) = Unit
+        })
         taskStatusCard = findViewById(R.id.taskStatusCard)
         taskStatusText = findViewById(R.id.taskStatusText)
         resultImage = findViewById(R.id.image)
@@ -184,26 +192,13 @@ class MainActivity : BaseActivity() {
 
     private fun bindActions() {
         findViewById<Button>(R.id.sessions).setOnClickListener { showSessionChooser() }
-        findViewById<Button>(R.id.settings).setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         findViewById<Button>(R.id.drawerClose).setOnClickListener { drawerLayout.closeDrawer(GravityCompat.START) }
         findViewById<Button>(R.id.drawerNewSession).setOnClickListener {
             createNewSession(); drawerLayout.closeDrawer(GravityCompat.START)
         }
-        findViewById<Button>(R.id.drawerOc).setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            startActivity(Intent(this, OcListActivity::class.java))
-        }
-        findViewById<Button>(R.id.drawerTemplates).setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            startActivity(Intent(this, TemplateListActivity::class.java))
-        }
         findViewById<Button>(R.id.drawerStickers).setOnClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
             startActivity(Intent(this, StickerActivity::class.java))
-        }
-        findViewById<Button>(R.id.drawerStickerTasks).setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            startActivity(Intent(this, StickerTaskActivity::class.java))
         }
         findViewById<Button>(R.id.drawerSettings).setOnClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
@@ -212,8 +207,7 @@ class MainActivity : BaseActivity() {
         findViewById<Button>(R.id.addReferences).setOnClickListener {
             pickReferences.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
-        findViewById<Button>(R.id.chooseOc).setOnClickListener { showOcChooser() }
-        findViewById<Button>(R.id.moreOptions).setOnClickListener { showMoreOptions() }
+        findViewById<Button>(R.id.moreOptions).setOnClickListener { showParameterPanel() }
         findViewById<Button>(R.id.clearReferences).setOnClickListener {
             referenceUris.clear(); renderReferences(); statusText.text = "已清空当前参考图"
         }
@@ -261,7 +255,6 @@ class MainActivity : BaseActivity() {
     private fun loadSession(session: ImageSession) {
         currentSession = session
         lastObservedTaskUpdate = -1L
-        sessionTitle.text = session.title.ifBlank { "新建生图" }
         promptEdit.setText(session.prompt)
         referenceUris.clear()
         session.referenceUris.mapNotNullTo(referenceUris) { runCatching { Uri.parse(it) }.getOrNull() }
@@ -273,7 +266,6 @@ class MainActivity : BaseActivity() {
         renderHistory()
         displayLatestResult()
         statusText.text = ""
-        updateTemplateHint()
         refreshTaskUi(force = true)
     }
 
@@ -292,7 +284,6 @@ class MainActivity : BaseActivity() {
             updatedAt = System.currentTimeMillis()
         )
         currentSession = updated
-        sessionTitle.text = updated.title
         workspace.saveSession(updated)
         workspace.setCurrentSessionId(updated.id)
     }
@@ -351,13 +342,23 @@ class MainActivity : BaseActivity() {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { marginStart = dp(8) }
             })
             row.addView(TextView(this).apply {
-                text = "删除"
-                textSize = 13f
+                text = "⋯"
+                contentDescription = "会话操作"
+                textSize = 20f
                 gravity = Gravity.CENTER
-                setTextColor(Color.parseColor("#B64A63"))
+                setTextColor(Color.parseColor("#555555"))
                 setPadding(dp(8), 0, dp(4), 0)
                 layoutParams = LinearLayout.LayoutParams(dp(52), LinearLayout.LayoutParams.MATCH_PARENT)
-                setOnClickListener { confirmDeleteSession(session) }
+                setOnClickListener { anchor ->
+                    PopupMenu(this@MainActivity, anchor).apply {
+                        menu.add("删除会话")
+                        setOnMenuItemClickListener {
+                            confirmDeleteSession(session)
+                            true
+                        }
+                        show()
+                    }
+                }
             })
             row.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56)).apply { bottomMargin = dp(6) }
             drawerSessionContainer.addView(row)
@@ -447,85 +448,16 @@ class MainActivity : BaseActivity() {
         })
     }
 
-    private fun applyPendingOc(source: Intent) {
-        val id = source.getStringExtra("apply_oc_id") ?: return
-        source.removeExtra("apply_oc_id")
-        workspace.getOc(id)?.let { applyOc(it) }
-    }
-
-    private fun applyPendingTemplate(source: Intent) {
-        val id = source.getStringExtra("apply_template_id") ?: return
-        source.removeExtra("apply_template_id")
-        workspace.getTemplate(id)?.let { applyTemplate(it) }
-    }
-
-    private fun applyTemplate(template: GenerationTemplate) {
-        promptEdit.setText(template.prompt)
-        promptEdit.setSelection(promptEdit.text.length)
-        referenceUris.clear()
-        addReferenceUris(template.fixedReferenceUris.map { Uri.parse(it) }, announce = false)
-        resolutionSpinner.setSelection(ImageSizeResolver.resolutions.indexOf(template.resolutionLevel).coerceAtLeast(0))
-        ratioSpinner.setSelection(ImageSizeResolver.ratios.indexOf(template.aspectRatio).let { if (it >= 0) it else 0 })
-        currentSession = currentSession?.copy(
-            templateId = template.id,
-            templateName = template.name,
-            transparentBackground = template.transparentBackground
-        )
-        updateTemplateHint()
-        statusText.text = if (template.transparentBackground) {
-            "已应用模板「${template.name}」· 透明背景。现在只需添加人物参考图即可生成。"
-        } else {
-            "已应用模板「${template.name}」。现在可添加人物参考图后生成。"
+    private fun showParameterPanel() {
+        val dialog = parameterDialog ?: BottomSheetDialog(this).also { sheet ->
+            val panel = findViewById<View>(R.id.parameterPanel)
+            (panel.parent as ViewGroup).removeView(panel)
+            panel.visibility = View.VISIBLE
+            panel.findViewById<Button>(R.id.parameterDone).setOnClickListener { sheet.dismiss() }
+            sheet.setContentView(panel)
+            parameterDialog = sheet
         }
-        saveCurrentSession()
-    }
-
-    private fun updateTemplateHint() {
-        // 模板状态已经合并进紧凑创作界面，不再使用旧的 templateHint View。
-        // 保留此方法，避免影响现有 applyTemplate()/会话恢复调用链。
-    }
-
-    private fun showOcChooser() {
-        val ocs = workspace.getOcs()
-        if (ocs.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle("还没有 OC")
-                .setMessage("OC 只保存：名称、多张参考图、一整段人物提示词。")
-                .setPositiveButton("新建 OC") { _, _ -> startActivity(Intent(this, OcEditActivity::class.java)) }
-                .setNegativeButton("取消", null).show()
-            return
-        }
-        val labels = ocs.map { it.name }.toMutableList().apply { add("⚙ 管理 OC") }
-        AlertDialog.Builder(this)
-            .setTitle("选择 OC")
-            .setItems(labels.toTypedArray()) { _, which ->
-                if (which == ocs.size) startActivity(Intent(this, OcListActivity::class.java)) else applyOc(ocs[which])
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-
-    private fun showMoreOptions() {
-        val names = relays.map { it.name }.toMutableList().apply { add("中转站设置") }
-        AlertDialog.Builder(this)
-            .setTitle("更多 · 当前 ${currentRelay?.name ?: "未选择中转站"}")
-            .setItems(names.toTypedArray()) { _, which ->
-                if (which == relays.size) {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                } else if (which in relays.indices) {
-                    currentRelay = relays[which]
-                    suppressRelayCallback = true
-                    relaySpinner.setSelection(which)
-                    suppressRelayCallback = false
-                    desiredModel = null
-                    populateModels(relays[which])
-                    fetchModels(relays[which])
-                    saveCurrentSession()
-                }
-            }
-            .setNegativeButton("取消", null)
-            .show()
+        dialog.show()
     }
 
     private fun applyUiPreferences() {
@@ -543,20 +475,9 @@ class MainActivity : BaseActivity() {
         generateButton.layoutParams = generateButton.layoutParams.apply { width = dp(c.generateSizeDp); height = dp(c.generateSizeDp) }
         (generateButton as? MaterialButton)?.cornerRadius = dp(c.generateSizeDp / 2)
         generateButton.backgroundTintList = ColorStateList.valueOf(runCatching { Color.parseColor(c.accentColor) }.getOrDefault(Color.parseColor("#7053D6")))
-        sessionTitle.visibility = View.GONE
         modelStatus.visibility = if (c.showModelStatus) View.VISIBLE else View.GONE
-        sizeHint.visibility = if (c.showSizeHint) View.VISIBLE else View.GONE
+        sizeHint.visibility = View.VISIBLE
         renderReferences()
-    }
-
-    private fun applyOc(oc: OcProfile) {
-        addReferenceUris(oc.referenceUris.map { Uri.parse(it) }, announce = false)
-        val current = promptEdit.text.toString().trim()
-        if (oc.prompt.isNotBlank() && !current.contains(oc.prompt)) {
-            promptEdit.setText(if (current.isBlank()) oc.prompt else "${oc.prompt}\n\n$current")
-            promptEdit.setSelection(promptEdit.text.length)
-        }
-        statusText.text = "已加入 OC「${oc.name}」的参考图和提示词，可继续修改"
     }
 
     private fun addReferenceUris(uris: List<Uri>, announce: Boolean = true) {
@@ -673,12 +594,15 @@ class MainActivity : BaseActivity() {
         val task = taskStore.getLatestForSession(sessionId)
         if (task == null) {
             setBusy(false, "")
-            renderHistory()
+            if (force) renderHistory()
             return
         }
         val stateChanged = force || task.updatedAt != lastObservedTaskUpdate
         if (stateChanged) lastObservedTaskUpdate = task.updatedAt
-        setBusy(task.isRunning(), if (task.isRunning()) "生成中…" else "")
+        if (stateChanged) {
+            setBusy(task.isRunning(), "")
+            statusText.text = ""
+        }
         if (task.status == GenerationTask.STATUS_SUCCESS && task.resultPath.isNotBlank()) {
             currentResultPath = task.resultPath
         }
@@ -695,6 +619,7 @@ class MainActivity : BaseActivity() {
     }
 
     private fun renderHistory() {
+        val followLatest = !chatScroll.canScrollVertically(1)
         historyContainer.removeAllViews()
         val sessionId = currentSession?.id ?: return
         val items = workspace.getHistory(sessionId).take(40).reversed()
@@ -712,7 +637,7 @@ class MainActivity : BaseActivity() {
 
         val latestTask = taskStore.getLatestForSession(sessionId)
         if (latestTask != null && latestTask.isRunning()) addRunningTurn(latestTask)
-        chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
+        if (followLatest) chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun addHistoryTurn(record: HistoryRecord) {
@@ -722,39 +647,60 @@ class MainActivity : BaseActivity() {
                 bottomMargin = dp(24)
             }
         }
-        addUserMessage(turn, record.referenceUris, record.prompt,
-            "${record.aspectRatio} · ${record.resolutionLevel} · ${shortModel(record.model)}")
+        addUserMessage(turn, record.referenceUris, record.prompt)
 
         if (record.status == "SUCCESS" && record.resultPath.isNotBlank() && File(record.resultPath).exists()) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(record.resultPath, bounds)
+            val maxWidth = (resources.displayMetrics.widthPixels * 0.67f).toInt().coerceAtLeast(1)
+            val ratio = if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                bounds.outWidth.toFloat() / bounds.outHeight
+            } else 16f / 9f
+            val width = minOf(maxWidth, (dp(360) * ratio).toInt()).coerceAtLeast(1)
+            val height = (width / ratio).toInt().coerceIn(1, dp(360))
             val image = ImageView(this).apply {
-                adjustViewBounds = true
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(Color.parseColor("#F2EDF5")) }
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(Color.parseColor("#F4F4F4")) }
                 clipToOutline = true
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(320)).apply {
-                    topMargin = dp(12); marginEnd = dp(34)
+                layoutParams = LinearLayout.LayoutParams(width, height).apply {
+                    topMargin = dp(12)
                 }
-                setOnClickListener {
-                    historyDetailLauncher.launch(Intent(this@MainActivity, HistoryDetailActivity::class.java).putExtra("history_id", record.id))
-                }
+                setOnClickListener { openHistory(record.id) }
             }
             Glide.with(this).load(File(record.resultPath)).into(image)
             turn.addView(image)
+            turn.addView(TextView(this).apply {
+                val pixels = if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                    "${bounds.outWidth}×${bounds.outHeight}"
+                } else ""
+                val elapsed = record.durationMs.takeIf { it > 0 }?.let { "${it / 1000}秒" }.orEmpty()
+                text = listOf(
+                    listOf(record.model, record.resolutionLevel, record.aspectRatio).joinToString(" · "),
+                    listOf(pixels, record.relayName, elapsed).filter { it.isNotBlank() }.joinToString(" · ")
+                ).filter { it.isNotBlank() }.joinToString("\n")
+                textSize = 12f
+                setTextColor(Color.parseColor("#666666"))
+                setPadding(0, dp(6), 0, 0)
+            })
             turn.addView(LinearLayout(this).apply {
-                gravity = Gravity.END
                 orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(5), dp(34), 0)
                 addView(TextView(this@MainActivity).apply {
-                    text = if (record.durationMs > 0) "${record.durationMs / 1000}s" else "完成"
-                    textSize = 12f; setTextColor(Color.parseColor("#8B8295")); setPadding(dp(8), dp(8), dp(12), dp(8))
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = "保存"; textSize = 13f; setTextColor(Color.parseColor("#7053D6")); setPadding(dp(12), dp(8), dp(8), dp(8))
+                    text = "保存"; textSize = 13f; setTextColor(Color.parseColor("#555555")); minHeight = dp(48); gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, dp(18), 0)
                     setOnClickListener { currentResultPath = record.resultPath; saveCurrentImage() }
                 })
                 addView(TextView(this@MainActivity).apply {
-                    text = "复用"; textSize = 13f; setTextColor(Color.parseColor("#7053D6")); setPadding(dp(12), dp(8), dp(8), dp(8))
+                    text = "复用"; textSize = 13f; setTextColor(Color.parseColor("#555555")); minHeight = dp(48); gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, dp(18), 0)
                     setOnClickListener { reuseHistory(record) }
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = "⋯"
+                    contentDescription = "查看详情和诊断"
+                    textSize = 20f
+                    minWidth = dp(48)
+                    minHeight = dp(48)
+                    gravity = Gravity.CENTER_VERTICAL
+                    setTextColor(Color.parseColor("#555555"))
+                    setOnClickListener { openHistory(record.id) }
                 })
             })
         } else {
@@ -763,10 +709,14 @@ class MainActivity : BaseActivity() {
                 setTextColor(Color.parseColor("#A33B54")); textSize = 13f
                 setPadding(dp(14), dp(12), dp(14), dp(12))
                 background = roundedDrawable("#FFF1F4", 16)
-                setOnClickListener { historyDetailLauncher.launch(Intent(this@MainActivity, HistoryDetailActivity::class.java).putExtra("history_id", record.id)) }
+                setOnClickListener { openHistory(record.id) }
             })
         }
         historyContainer.addView(turn)
+    }
+
+    private fun openHistory(id: String) {
+        historyDetailLauncher.launch(Intent(this, HistoryDetailActivity::class.java).putExtra("history_id", id))
     }
 
     private fun addRunningTurn(task: GenerationTask) {
@@ -774,8 +724,7 @@ class MainActivity : BaseActivity() {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(24) }
         }
-        addUserMessage(turn, task.referenceUris, task.prompt,
-            "${task.aspectRatio} · ${task.resolutionLevel} · ${shortModel(task.model)}")
+        addUserMessage(turn, task.referenceUris, task.prompt)
         val elapsed = ((System.currentTimeMillis() - task.createdAt).coerceAtLeast(0L) / 1000L)
         turn.addView(TextView(this).apply {
             text = "酸奶喵正在生成…  ${elapsed}s\n${task.stage}"
@@ -787,38 +736,49 @@ class MainActivity : BaseActivity() {
         historyContainer.addView(turn)
     }
 
-    private fun addUserMessage(parent: LinearLayout, refs: List<String>, prompt: String, meta: String) {
-        if (refs.isNotEmpty()) {
-            val strip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            refs.take(4).forEach { raw ->
-                val image = ImageView(this).apply {
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    background = roundedDrawable("#F2EDF5", 14); clipToOutline = true
-                    layoutParams = LinearLayout.LayoutParams(dp(82), dp(82)).apply { marginEnd = dp(7) }
-                }
-                Glide.with(this).load(Uri.parse(raw)).into(image); strip.addView(image)
-            }
-            parent.addView(strip)
-        }
+    private fun addUserMessage(parent: LinearLayout, refs: List<String>, prompt: String) {
         parent.addView(TextView(this).apply {
-            text = meta; textSize = 11f; setTextColor(Color.parseColor("#8B8295"))
-            setPadding(dp(2), if (refs.isEmpty()) 0 else dp(7), dp(2), dp(4))
-        })
-        parent.addView(TextView(this).apply {
-            text = prompt; textSize = 15f; setTextColor(Color.parseColor("#2A2431"))
+            text = prompt
+            textSize = 15f
+            setTextColor(Color.parseColor("#181818"))
             setPadding(dp(14), dp(11), dp(14), dp(11))
-            background = roundedDrawable("#F1EDF4", 18)
+            background = roundedDrawable("#EFEFF2", 18)
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.END; marginStart = dp(42)
+                gravity = Gravity.END
+                marginStart = dp(42)
             }
         })
-    }
-
-    private fun shortModel(model: String): String = when {
-        model.contains("sunburst", true) -> "Sunburst"
-        model.contains("flare", true) -> "Flare"
-        model.length > 18 -> model.takeLast(18)
-        else -> model
+        if (refs.isEmpty()) return
+        val thumbnails = HorizontalScrollView(this).apply {
+            isFillViewport = true
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(6)
+            }
+        }
+        val strip = LinearLayout(this).apply {
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        }
+        strip.addView(TextView(this).apply {
+            text = "参考图"
+            textSize = 11f
+            setTextColor(Color.parseColor("#666666"))
+        })
+        refs.forEachIndexed { index, raw ->
+            val thumbnail = ImageView(this).apply {
+                contentDescription = "参考图 ${index + 1}"
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = roundedDrawable("#F4F4F4", 8)
+                clipToOutline = true
+                layoutParams = LinearLayout.LayoutParams(dp(52), dp(40)).apply { marginStart = dp(5) }
+            }
+            Glide.with(this).load(Uri.parse(raw)).into(thumbnail)
+            strip.addView(thumbnail)
+        }
+        thumbnails.addView(strip, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
+        ))
+        parent.addView(thumbnails)
     }
 
     private fun roundedDrawable(color: String, radiusDp: Int) = GradientDrawable().apply {
@@ -837,7 +797,6 @@ class MainActivity : BaseActivity() {
             transparentBackground = record.transparentBackground
         )
         reloadRelays(targetRelayId = record.relayId, preserveCurrentModel = false)
-        updateTemplateHint()
         statusText.text = if (record.transparentBackground) "已复用历史参数 · 透明背景" else "已一键复用历史参数，可直接修改后再次生成"
         saveCurrentSession()
     }
