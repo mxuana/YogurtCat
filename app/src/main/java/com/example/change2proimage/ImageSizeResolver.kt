@@ -37,7 +37,7 @@ object ImageSizeResolver {
                 else -> 1024 to 1024
             }
         } else if (modern) {
-            constrain(target.first, target.second)
+            constrain(target.first!!, target.second!!)
         } else target
         return SizePlan(target.first, target.second, request.first, request.second,
             adapted = target != request)
