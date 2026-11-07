@@ -2,7 +2,6 @@ package com.example.change2proimage
 
 import android.Manifest
 import android.content.ContentValues
-import android.content.res.ColorStateList
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -16,7 +15,6 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -35,12 +33,11 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.bumptech.glide.Glide
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
-import com.google.android.material.button.MaterialButton
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -70,7 +67,6 @@ class MainActivity : BaseActivity() {
     private lateinit var resolutionSpinner: Spinner
     private lateinit var ratioSpinner: Spinner
     private lateinit var sizeHint: TextView
-    private var parameterDialog: BottomSheetDialog? = null
     private lateinit var relaySpinner: Spinner
     private lateinit var modelSpinner: Spinner
     private lateinit var modelStatus: TextView
@@ -92,6 +88,8 @@ class MainActivity : BaseActivity() {
     private val referenceUris = mutableListOf<Uri>()
     private var currentResultPath: String? = null
     private var lastObservedTaskUpdate = -1L
+    private var runningStatus: TextView? = null
+    private var animatedTaskId: String? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private val pollRunnable = object : Runnable {
@@ -150,12 +148,10 @@ class MainActivity : BaseActivity() {
         if (::relayStore.isInitialized && currentSession != null) reloadRelays(preserveCurrentModel = true)
         handler.removeCallbacks(pollRunnable)
         handler.post(pollRunnable)
-        applyUiPreferences()
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(pollRunnable)
-        parameterDialog?.dismiss()
         super.onDestroy()
     }
 
@@ -172,6 +168,9 @@ class MainActivity : BaseActivity() {
         relaySpinner = findViewById(R.id.relay)
         modelSpinner = findViewById(R.id.model)
         modelStatus = findViewById(R.id.modelStatus)
+        modelStatus.doAfterTextChanged { text ->
+            modelStatus.visibility = if (text.isNullOrBlank()) View.GONE else View.VISIBLE
+        }
         generateButton = findViewById(R.id.generate)
         saveButton = findViewById(R.id.save)
         progress = findViewById(R.id.progress)
@@ -196,10 +195,6 @@ class MainActivity : BaseActivity() {
         findViewById<Button>(R.id.drawerNewSession).setOnClickListener {
             createNewSession(); drawerLayout.closeDrawer(GravityCompat.START)
         }
-        findViewById<Button>(R.id.drawerStickers).setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            startActivity(Intent(this, StickerActivity::class.java))
-        }
         findViewById<Button>(R.id.drawerSettings).setOnClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -207,7 +202,6 @@ class MainActivity : BaseActivity() {
         findViewById<Button>(R.id.addReferences).setOnClickListener {
             pickReferences.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
-        findViewById<Button>(R.id.moreOptions).setOnClickListener { showParameterPanel() }
         findViewById<Button>(R.id.clearReferences).setOnClickListener {
             referenceUris.clear(); renderReferences(); statusText.text = "已清空当前参考图"
         }
@@ -215,9 +209,14 @@ class MainActivity : BaseActivity() {
         saveButton.setOnClickListener { saveCurrentImage() }
     }
 
+    private fun parameterAdapter(values: List<String>) =
+        ArrayAdapter(this, R.layout.item_parameter_value, values).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+
     private fun setupSizeSelectors() {
-        resolutionSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, ImageSizeResolver.resolutions)
-        ratioSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, ImageSizeResolver.ratios)
+        resolutionSpinner.adapter = parameterAdapter(ImageSizeResolver.resolutions)
+        ratioSpinner.adapter = parameterAdapter(ImageSizeResolver.ratios)
         val listener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) = updateSizeHint()
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
@@ -385,7 +384,7 @@ class MainActivity : BaseActivity() {
         if (relays.isEmpty()) return
         val index = relays.indexOfFirst { it.id == wantedRelay }.let { if (it >= 0) it else 0 }
         suppressRelayCallback = true
-        relaySpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, relays.map { it.name })
+        relaySpinner.adapter = parameterAdapter(relays.map { it.name })
         relaySpinner.setSelection(index)
         suppressRelayCallback = false
         currentRelay = relays[index]
@@ -404,7 +403,7 @@ class MainActivity : BaseActivity() {
             if (relay.defaultModel.isNotBlank()) add(relay.defaultModel)
         }.filter { it.isNotBlank() }.distinct()
         val visible = if (models.isEmpty()) listOf("请先在设置中配置模型") else models
-        modelSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, visible)
+        modelSpinner.adapter = parameterAdapter(visible)
         val idx = visible.indexOf(preferred).let { if (it >= 0) it else 0 }
         modelSpinner.setSelection(idx)
         desiredModel = null
@@ -440,44 +439,12 @@ class MainActivity : BaseActivity() {
                         if (currentRelay?.id == relay.id) {
                             desiredModel = selectedModel().takeIf { model -> model.isNotBlank() && !model.startsWith("请先") }
                             populateModels(relay.copy(cachedModels = models.ifEmpty { relay.cachedModels }), models)
-                            modelStatus.text = if (models.isEmpty()) "未读取到模型，使用缓存/默认模型" else "已读取 ${models.size} 个模型"
+                            modelStatus.text = if (models.isEmpty()) "未读取到模型，使用缓存/默认模型" else ""
                         }
                     }
                 }
             }
         })
-    }
-
-    private fun showParameterPanel() {
-        val dialog = parameterDialog ?: BottomSheetDialog(this).also { sheet ->
-            val panel = findViewById<View>(R.id.parameterPanel)
-            (panel.parent as ViewGroup).removeView(panel)
-            panel.visibility = View.VISIBLE
-            panel.findViewById<Button>(R.id.parameterDone).setOnClickListener { sheet.dismiss() }
-            sheet.setContentView(panel)
-            parameterDialog = sheet
-        }
-        dialog.show()
-    }
-
-    private fun applyUiPreferences() {
-        val c = UiPreferences(this).load()
-        val main = findViewById<LinearLayout>(R.id.mainContent)
-        val composer = findViewById<MaterialCardView>(R.id.composerCard)
-        main.setPadding(dp(c.pageMarginDp), main.paddingTop, dp(c.pageMarginDp), main.paddingBottom)
-        findViewById<View>(R.id.drawerLayout).setBackgroundColor(runCatching { Color.parseColor(c.backgroundColor) }.getOrDefault(Color.WHITE))
-        composer.setCardBackgroundColor(runCatching { Color.parseColor(c.cardColor) }.getOrDefault(Color.WHITE))
-        composer.radius = dp(c.cardRadiusDp).toFloat()
-        val inner = composer.getChildAt(0)
-        if (inner is View) inner.setPadding(dp(c.cardPaddingDp), dp(c.cardPaddingDp), dp(c.cardPaddingDp), dp(c.cardPaddingDp))
-        promptEdit.minHeight = dp(c.promptHeightDp)
-        promptEdit.textSize = 16f * c.textScalePercent / 100f
-        generateButton.layoutParams = generateButton.layoutParams.apply { width = dp(c.generateSizeDp); height = dp(c.generateSizeDp) }
-        (generateButton as? MaterialButton)?.cornerRadius = dp(c.generateSizeDp / 2)
-        generateButton.backgroundTintList = ColorStateList.valueOf(runCatching { Color.parseColor(c.accentColor) }.getOrDefault(Color.parseColor("#7053D6")))
-        modelStatus.visibility = if (c.showModelStatus) View.VISIBLE else View.GONE
-        sizeHint.visibility = View.VISIBLE
-        renderReferences()
     }
 
     private fun addReferenceUris(uris: List<Uri>, announce: Boolean = true) {
@@ -488,6 +455,9 @@ class MainActivity : BaseActivity() {
             runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             referenceUris += uri
         }
+        if (announce && referenceUris.isNotEmpty()) {
+            android.transition.TransitionManager.beginDelayedTransition(findViewById(R.id.composerCard))
+        }
         renderReferences()
         if (announce) statusText.text = if (ignored > 0) "最多 $MAX_REFERENCE_IMAGES 张参考图，已忽略 $ignored 张" else "已选择 ${referenceUris.size} 张参考图"
     }
@@ -495,14 +465,13 @@ class MainActivity : BaseActivity() {
     private fun renderReferences() {
         referenceContainer.removeAllViews()
         findViewById<View>(R.id.referenceScroll).visibility = if (referenceUris.isEmpty()) View.GONE else View.VISIBLE
-        val ui = UiPreferences(this).load()
         referenceUris.forEach { uri ->
             val card = MaterialCardView(this).apply {
                 radius = dp(14).toFloat()
                 strokeWidth = dp(1)
                 strokeColor = Color.parseColor("#ECDFF1")
                 cardElevation = 0f
-                layoutParams = LinearLayout.LayoutParams(dp(ui.referenceSizeDp), dp(ui.referenceSizeDp)).apply { marginEnd = dp(ui.gapDp) }
+                layoutParams = LinearLayout.LayoutParams(dp(60), dp(60)).apply { marginEnd = dp(6) }
             }
             val frame = FrameLayout(this)
             val image = ImageView(this).apply {
@@ -580,6 +549,7 @@ class MainActivity : BaseActivity() {
             transparentBackground = currentSession?.transparentBackground == true
         )
         taskStore.upsert(task)
+        animatedTaskId = task.id
         lastObservedTaskUpdate = -1L
         ContextCompat.startForegroundService(
             this,
@@ -587,6 +557,7 @@ class MainActivity : BaseActivity() {
         )
         setBusy(true, "任务已交给后台生成，切屏不会中断")
         refreshTaskUi(force = true)
+        historyContainer.getChildAt(historyContainer.childCount - 1)?.let(::animateArrival)
     }
 
     private fun refreshTaskUi(force: Boolean = false) {
@@ -607,7 +578,8 @@ class MainActivity : BaseActivity() {
             currentResultPath = task.resultPath
         }
         // 对话流就是任务状态的唯一展示位置；运行中每秒更新等待时间。
-        if (stateChanged || task.isRunning()) renderHistory()
+        if (stateChanged) renderHistory()
+        else if (task.isRunning()) runningStatus?.text = runningLabel(task)
     }
 
     private fun displayLatestResult() {
@@ -620,6 +592,7 @@ class MainActivity : BaseActivity() {
 
     private fun renderHistory() {
         val followLatest = !chatScroll.canScrollVertically(1)
+        runningStatus = null
         historyContainer.removeAllViews()
         val sessionId = currentSession?.id ?: return
         val items = workspace.getHistory(sessionId).take(40).reversed()
@@ -658,18 +631,24 @@ class MainActivity : BaseActivity() {
             } else 16f / 9f
             val width = minOf(maxWidth, (dp(360) * ratio).toInt()).coerceAtLeast(1)
             val height = (width / ratio).toInt().coerceIn(1, dp(360))
+            val bubble = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = roundedDrawable("#F0F0F2", 16)
+                setPadding(dp(6), dp(6), dp(6), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(12) }
+            }
             val image = ImageView(this).apply {
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(Color.parseColor("#F4F4F4")) }
                 clipToOutline = true
-                layoutParams = LinearLayout.LayoutParams(width, height).apply {
-                    topMargin = dp(12)
-                }
+                layoutParams = LinearLayout.LayoutParams(width, height)
                 setOnClickListener { openHistory(record.id) }
             }
             Glide.with(this).load(File(record.resultPath)).into(image)
-            turn.addView(image)
-            turn.addView(TextView(this).apply {
+            bubble.addView(image)
+            bubble.addView(TextView(this).apply {
                 val pixels = if (bounds.outWidth > 0 && bounds.outHeight > 0) {
                     "${bounds.outWidth}×${bounds.outHeight}"
                 } else ""
@@ -682,7 +661,7 @@ class MainActivity : BaseActivity() {
                 setTextColor(Color.parseColor("#666666"))
                 setPadding(0, dp(6), 0, 0)
             })
-            turn.addView(LinearLayout(this).apply {
+            bubble.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 addView(TextView(this@MainActivity).apply {
                     text = "保存"; textSize = 13f; setTextColor(Color.parseColor("#555555")); minHeight = dp(48); gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, dp(18), 0)
@@ -703,6 +682,11 @@ class MainActivity : BaseActivity() {
                     setOnClickListener { openHistory(record.id) }
                 })
             })
+            turn.addView(bubble)
+            if (animatedTaskId == record.id) {
+                animatedTaskId = null
+                animateArrival(bubble)
+            }
         } else {
             turn.addView(TextView(this).apply {
                 text = "生成失败 · ${record.stage.ifBlank { "请求失败" }}\n${record.errorDetail.ifBlank { "点击查看诊断" }}"
@@ -725,15 +709,27 @@ class MainActivity : BaseActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(24) }
         }
         addUserMessage(turn, task.referenceUris, task.prompt)
-        val elapsed = ((System.currentTimeMillis() - task.createdAt).coerceAtLeast(0L) / 1000L)
-        turn.addView(TextView(this).apply {
-            text = "酸奶喵正在生成…  ${elapsed}s\n${task.stage}"
+        val status = TextView(this).apply {
+            text = runningLabel(task)
             setTextColor(Color.parseColor("#6E6578")); textSize = 14f
             setPadding(dp(16), dp(18), dp(16), dp(18))
             background = roundedDrawable("#F5F0F7", 18)
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12); marginEnd = dp(34) }
-        })
+        }
+        runningStatus = status
+        turn.addView(status)
         historyContainer.addView(turn)
+    }
+
+    private fun runningLabel(task: GenerationTask): String {
+        val seconds = (System.currentTimeMillis() - task.createdAt).coerceAtLeast(0L) / 1000L
+        return "酸奶喵正在生成… ${seconds}秒\n${task.stage}"
+    }
+
+    private fun animateArrival(view: View) {
+        view.alpha = 0f
+        view.translationY = dp(8).toFloat()
+        view.animate().alpha(1f).translationY(0f).setDuration(200).start()
     }
 
     private fun addUserMessage(parent: LinearLayout, refs: List<String>, prompt: String) {
@@ -742,7 +738,7 @@ class MainActivity : BaseActivity() {
             textSize = 15f
             setTextColor(Color.parseColor("#181818"))
             setPadding(dp(14), dp(11), dp(14), dp(11))
-            background = roundedDrawable("#EFEFF2", 18)
+            background = roundedDrawable("#E8EDF9", 18)
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.END
                 marginStart = dp(42)

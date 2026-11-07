@@ -23,7 +23,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <service android:name=".StickerQueueService" android:exported="false" android:stopWithTask="false" android:foregroundServiceType="dataSync" />
 
         <service
             android:name=".GenerationService"
@@ -36,10 +35,6 @@
         <activity android:name=".OcListActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".TemplateEditActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".TemplateListActivity" android:screenOrientation="portrait" android:exported="false" />
-        <activity android:name=".StickerActivity" android:screenOrientation="portrait" android:exported="false" />
-        <activity android:name=".StickerItemEditActivity" android:screenOrientation="portrait" android:exported="false" />
-        <activity android:name=".StickerTaskActivity" android:screenOrientation="portrait" android:exported="false" />
-        <activity android:name=".UiEditorActivity" android:exported="false" />
         <activity android:name=".SettingsActivity" android:screenOrientation="portrait" android:exported="false" />
 
         <activity
