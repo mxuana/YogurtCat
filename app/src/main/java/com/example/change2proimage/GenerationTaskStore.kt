@@ -20,6 +20,7 @@ data class GenerationTask(
     val stage: String = "等待开始",
     val requestedSize: String = "",
     val actualSize: String = "",
+    val sizeDiagnostic: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val completedAt: Long = 0L,
@@ -125,6 +126,7 @@ class GenerationTaskStore(context: Context) {
         .put("transparentBackground", t.transparentBackground)
         .put("status", t.status).put("stage", t.stage)
         .put("requestedSize", t.requestedSize).put("actualSize", t.actualSize)
+        .put("sizeDiagnostic", t.sizeDiagnostic)
         .put("createdAt", t.createdAt).put("updatedAt", t.updatedAt).put("completedAt", t.completedAt)
         .put("httpCode", t.httpCode).put("errorMessage", t.errorMessage).put("responseSnippet", t.responseSnippet)
         .put("historyId", t.historyId).put("resultPath", t.resultPath).put("revisedPrompt", t.revisedPrompt)
@@ -141,6 +143,7 @@ class GenerationTaskStore(context: Context) {
             transparentBackground = o.optBoolean("transparentBackground", false),
             status = o.optString("status", GenerationTask.STATUS_QUEUED), stage = o.optString("stage", "等待开始"),
             requestedSize = o.optString("requestedSize"), actualSize = o.optString("actualSize"),
+            sizeDiagnostic = o.optString("sizeDiagnostic"),
             createdAt = o.optLong("createdAt", System.currentTimeMillis()), updatedAt = o.optLong("updatedAt", System.currentTimeMillis()),
             completedAt = o.optLong("completedAt"), httpCode = o.optInt("httpCode"), errorMessage = o.optString("errorMessage"),
             responseSnippet = o.optString("responseSnippet"), historyId = o.optString("historyId"),
