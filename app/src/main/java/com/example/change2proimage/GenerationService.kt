@@ -102,14 +102,20 @@ class GenerationService : Service() {
         val hasReferences = task.referenceUris.isNotEmpty()
         val endpoint = joinUrl(relay.baseUrl, if (hasReferences) relay.editsPath else relay.generationsPath)
 
+        val sizeFields = ImageSizeResolver.requestFields(relay.sizeMode, plan)
         val requestBody = try {
-            if (hasReferences) buildMultipartBody(relay, task, plan) else buildJsonBody(relay, task, plan)
+            if (hasReferences) buildMultipartBody(relay, task, sizeFields) else buildJsonBody(relay, task, sizeFields)
         } catch (e: Exception) {
             failTask(taskStore.get(taskId) ?: task, "读取参考图", e.message ?: e.javaClass.simpleName)
             return
         }
 
-        updateTask(taskId, GenerationTask.STATUS_GENERATING, "等待模型生成", requestedSize, actualSize)
+        val bodyType = if (hasReferences) "multipart" else "JSON"
+        val fieldsLabel = sizeFields.entries.joinToString { "${it.key}=${it.value}" }.ifEmpty { "未发送尺寸字段" }
+        val sizeDiagnostic = "尺寸模式：${relay.sizeMode}\n目标尺寸：$requestedSize\n请求尺寸计划：$actualSize\n$bodyType 尺寸字段：$fieldsLabel"
+        taskStore.update(taskId) {
+            it.copy(status = GenerationTask.STATUS_GENERATING, stage = "等待模型生成", sizeDiagnostic = sizeDiagnostic)
+        }
         updateNotification(taskId, "模型正在生成…")
 
         val request = Request.Builder()
@@ -148,20 +154,20 @@ class GenerationService : Service() {
         return task.prompt + "\n\n输出要求：透明背景，保留 Alpha 通道；不要白色背景、纯色背景、场景背景或棋盘格背景。"
     }
 
-    private fun buildJsonBody(relay: RelayConfig, task: GenerationTask, plan: SizePlan): RequestBody {
+    private fun buildJsonBody(relay: RelayConfig, task: GenerationTask, sizeFields: Map<String, Any>): RequestBody {
         val obj = JSONObject().put("model", task.model).put("prompt", effectivePrompt(task)).put("stream", relay.streamEnabled)
         if (task.transparentBackground) obj.put("background", "transparent")
-        addJsonSize(obj, relay, plan)
+        sizeFields.forEach { (name, value) -> obj.put(name, value) }
         return obj.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
     }
 
-    private fun buildMultipartBody(relay: RelayConfig, task: GenerationTask, plan: SizePlan): RequestBody {
+    private fun buildMultipartBody(relay: RelayConfig, task: GenerationTask, sizeFields: Map<String, Any>): RequestBody {
         val builder = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("model", task.model)
             .addFormDataPart("prompt", effectivePrompt(task))
             .addFormDataPart("stream", relay.streamEnabled.toString())
         if (task.transparentBackground) builder.addFormDataPart("background", "transparent")
-        addMultipartSize(builder, relay, plan)
+        sizeFields.forEach { (name, value) -> builder.addFormDataPart(name, value.toString()) }
 
         task.referenceUris.forEachIndexed { index, value ->
             val uri = Uri.parse(value)
@@ -184,29 +190,6 @@ class GenerationService : Service() {
         override fun writeTo(sink: BufferedSink) {
             val input = contentResolver.openInputStream(uri) ?: throw IOException("无法读取参考图：$uri")
             input.use { stream -> sink.writeAll(stream.source()) }
-        }
-    }
-
-    private fun addJsonSize(obj: JSONObject, relay: RelayConfig, plan: SizePlan) {
-        val w = plan.requestWidth ?: return
-        val h = plan.requestHeight ?: return
-        when (relay.sizeMode) {
-            "width_height" -> { obj.put("width", w); obj.put("height", h) }
-            "none" -> Unit
-            else -> obj.put("size", "${w}x${h}")
-        }
-    }
-
-    private fun addMultipartSize(builder: MultipartBody.Builder, relay: RelayConfig, plan: SizePlan) {
-        val w = plan.requestWidth ?: return
-        val h = plan.requestHeight ?: return
-        when (relay.sizeMode) {
-            "width_height" -> {
-                builder.addFormDataPart("width", w.toString())
-                builder.addFormDataPart("height", h.toString())
-            }
-            "none" -> Unit
-            else -> builder.addFormDataPart("size", "${w}x${h}")
         }
     }
 
@@ -267,6 +250,7 @@ class GenerationService : Service() {
                 resolutionLevel = task.resolutionLevel,
                 aspectRatio = task.aspectRatio,
                 actualSize = task.actualSize,
+                sizeDiagnostic = task.sizeDiagnostic,
                 transparentBackground = task.transparentBackground,
                 sizeLabel = task.actualSize.ifBlank { "自动" },
                 resultPath = file.absolutePath,
@@ -306,6 +290,7 @@ class GenerationService : Service() {
                 resolutionLevel = task.resolutionLevel,
                 aspectRatio = task.aspectRatio,
                 actualSize = task.actualSize,
+                sizeDiagnostic = task.sizeDiagnostic,
                 transparentBackground = task.transparentBackground,
                 sizeLabel = task.actualSize.ifBlank { "自动" },
                 resultPath = "",

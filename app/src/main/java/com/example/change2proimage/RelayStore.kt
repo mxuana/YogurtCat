@@ -26,7 +26,7 @@ data class RelayConfig(
 class RelayStore(private val context: Context) {
     private val prefs = context.getSharedPreferences("relay_store_v2", Context.MODE_PRIVATE)
 
-    fun getAll(): MutableList<RelayConfig> {
+    fun getAll(): MutableList<RelayConfig> = synchronized(lock) {
         val raw = prefs.getString("relays", null)
         if (raw.isNullOrBlank()) {
             val initial = mutableListOf(defaultRelay())
@@ -46,13 +46,13 @@ class RelayStore(private val context: Context) {
         }
     }
 
-    fun saveAll(relays: List<RelayConfig>) {
+    fun saveAll(relays: List<RelayConfig>) = synchronized(lock) {
         val arr = JSONArray()
         relays.forEach { arr.put(toJson(it)) }
         prefs.edit().putString("relays", arr.toString()).apply()
     }
 
-    fun upsert(relay: RelayConfig) {
+    fun upsert(relay: RelayConfig) = synchronized(lock) {
         val all = getAll()
         val index = all.indexOfFirst { it.id == relay.id }
         if (index >= 0) all[index] = relay else all += relay
@@ -60,7 +60,7 @@ class RelayStore(private val context: Context) {
     }
 
 
-    fun updateModelCheck(id: String, status: String, message: String, models: List<String>? = null) {
+    fun updateModelCheck(id: String, status: String, message: String, models: List<String>? = null) = synchronized(lock) {
         val all = getAll(); val index = all.indexOfFirst { it.id == id }; if (index < 0) return
         all[index] = all[index].copy(
             cachedModels = models?.distinct()?.filter { it.isNotBlank() } ?: all[index].cachedModels,
@@ -69,18 +69,23 @@ class RelayStore(private val context: Context) {
         saveAll(all)
     }
 
-    fun delete(id: String) {
+    fun delete(id: String) = synchronized(lock) {
         val all = getAll().filterNot { it.id == id }.toMutableList()
         if (all.isEmpty()) all += defaultRelay(apiKey = "", model = "gpt-image-2")
         saveAll(all)
     }
 
-    fun updateCachedModels(id: String, models: List<String>) {
+    fun updateCachedModels(id: String, models: List<String>) = synchronized(lock) {
         val all = getAll()
         val index = all.indexOfFirst { it.id == id }
         if (index < 0) return
         all[index] = all[index].copy(cachedModels = models.distinct(), modelCheckStatus = "ok", modelCheckMessage = "读取到 ${models.distinct().size} 个模型", modelCheckedAt = System.currentTimeMillis())
         saveAll(all)
+    }
+
+    private companion object {
+        // Settings, generation and model callbacks use separate store instances.
+        val lock = Any()
     }
 
     private fun defaultRelay(apiKey: String? = null, model: String? = null): RelayConfig {

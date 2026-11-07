@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -24,6 +25,7 @@ import java.util.Locale
 class HistoryDetailActivity : BaseActivity() {
     private lateinit var store: WorkspaceStore
     private var record: HistoryRecord? = null
+    private var resultDimensions: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +40,13 @@ class HistoryDetailActivity : BaseActivity() {
             return
         }
         record = item
+        if (item.status == "SUCCESS" && item.resultPath.isNotBlank()) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(item.resultPath, bounds)
+            if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                resultDimensions = "${bounds.outWidth}×${bounds.outHeight}"
+            }
+        }
         bind(item)
         findViewById<Button>(R.id.reuse).setOnClickListener {
             setResult(Activity.RESULT_OK, Intent().putExtra("history_id", item.id))
@@ -65,7 +74,7 @@ class HistoryDetailActivity : BaseActivity() {
             append("状态：${if (item.status == "FAILED") "生成失败" else "生成成功"}\n")
             append("中转站：${item.relayName}\n模型：${item.model}\n")
             append("选择：${item.resolutionLevel} · ${item.aspectRatio}\n")
-            if (item.actualSize.isNotBlank()) append("实际请求尺寸：${item.actualSize}\n")
+            append(sizeDiagnostics(item))
             append("参考图：${item.referenceUris.size} 张\n")
             append("时间：${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(item.createdAt))}\n")
             if (item.durationMs > 0) append("耗时：${formatDuration(item.durationMs)}\n")
@@ -101,15 +110,23 @@ class HistoryDetailActivity : BaseActivity() {
             append("中转站：${item.relayName}\n")
             append("模型：${item.model}\n")
             append("选择：${item.resolutionLevel} · ${item.aspectRatio}\n")
-            append("实际尺寸：${item.actualSize.ifBlank { "自动" }}\n")
+            append(sizeDiagnostics(item))
             append("参考图：${item.referenceUris.size} 张\n")
             append("HTTP：${if (item.httpCode > 0) item.httpCode else "无"}\n")
-            append("错误：${item.errorDetail.ifBlank { "无" }}\n")
-            if (item.responseSnippet.isNotBlank()) append("服务器返回：${item.responseSnippet}")
         }
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("酸奶喵诊断", text))
         Toast.makeText(this, "诊断信息已复制（不包含 API Key）", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun sizeDiagnostics(item: HistoryRecord) = buildString {
+        if (item.sizeDiagnostic.isNotBlank()) {
+            appendLine(item.sizeDiagnostic)
+        } else {
+            appendLine("请求尺寸计划：${item.actualSize.ifBlank { "未记录" }}")
+            appendLine("请求体尺寸字段：未记录")
+        }
+        resultDimensions?.let { appendLine("返回图片像素：$it") }
     }
 
     private fun saveImage(item: HistoryRecord) {

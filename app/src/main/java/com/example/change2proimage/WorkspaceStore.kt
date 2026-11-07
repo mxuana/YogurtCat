@@ -69,7 +69,8 @@ data class HistoryRecord(
     val httpCode: Int = 0,
     val errorDetail: String = "",
     val responseSnippet: String = "",
-    val durationMs: Long = 0L
+    val durationMs: Long = 0L,
+    val sizeDiagnostic: String = ""
 )
 
 class WorkspaceStore(context: Context) {
@@ -299,6 +300,7 @@ class WorkspaceStore(context: Context) {
         .put("sizeLabel", h.sizeLabel).put("customWidth", h.customWidth).put("customHeight", h.customHeight)
         .put("resultPath", h.resultPath).put("resultUrl", h.resultUrl).put("revisedPrompt", h.revisedPrompt)
         .put("status", h.status).put("stage", h.stage).put("httpCode", h.httpCode)
+        .put("sizeDiagnostic", h.sizeDiagnostic)
         .put("errorDetail", h.errorDetail).put("responseSnippet", h.responseSnippet).put("durationMs", h.durationMs)
 
     private fun historyFromJson(o: JSONObject): HistoryRecord {
@@ -313,6 +315,7 @@ class WorkspaceStore(context: Context) {
             resolutionLevel = o.optString("resolutionLevel", inferResolution(legacySize)),
             aspectRatio = o.optString("aspectRatio", inferRatio(legacySize)),
             actualSize = o.optString("actualSize"),
+            sizeDiagnostic = o.optString("sizeDiagnostic"),
             transparentBackground = o.optBoolean("transparentBackground", false),
             sizeLabel = legacySize,
             customWidth = o.optString("customWidth"), customHeight = o.optString("customHeight"),

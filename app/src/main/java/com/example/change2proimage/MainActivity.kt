@@ -617,9 +617,13 @@ class MainActivity : BaseActivity() {
         if (model.isBlank() || model.startsWith("请先")) return
         val plan = ImageSizeResolver.resolve(relay, model, selectedResolution(), selectedRatio())
         sizeHint.text = when {
+            relay.sizeMode == "none" -> "当前中转站配置为不发送尺寸参数"
             plan.requestWidth == null -> "尺寸由模型自动决定"
             plan.adapted -> "目标 ${plan.targetLabel} · 当前模型接口适配为 ${plan.requestLabel}"
-            else -> "实际请求尺寸：${plan.requestLabel}"
+            else -> {
+                val fields = ImageSizeResolver.requestFields(relay.sizeMode, plan)
+                "将发送：" + fields.entries.joinToString { "${it.key}=${it.value}" }
+            }
         }
     }
 

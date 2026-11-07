@@ -43,6 +43,16 @@ object ImageSizeResolver {
             adapted = target != request)
     }
 
+    fun requestFields(sizeMode: String, plan: SizePlan): Map<String, Any> {
+        val width = plan.requestWidth ?: return emptyMap()
+        val height = plan.requestHeight ?: return emptyMap()
+        return when (sizeMode) {
+            "width_height" -> mapOf("width" to width, "height" to height)
+            "none" -> emptyMap()
+            else -> mapOf("size" to "${width}x${height}")
+        }
+    }
+
     private fun targetDimensions(resolution: String, ratio: String): Pair<Int?, Int?> {
         if (ratio == "自动") return null to null
         val longSide = when (resolution) {
